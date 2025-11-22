@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fases Lunares en Realidad Aumentada</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+
+  <!-- AR.js para A-Frame (marker-based WebAR) -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    /* HUD (texto sobre la imagen) */
+    #hud {
+      position: fixed;
+      top: 0.5rem;
+      left: 0.5rem;
+      right: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      z-index: 9999;
+      color: #ffffff;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+    }
+
+    #titulo {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    #fase {
+      font-size: 1.3rem;
+      font-weight: 800;
+    }
+
+    #instrucciones {
+      font-size: 0.9rem;
+      max-width: 340px;
+    }
+
+    .panel {
+      background: rgba(0, 0, 0, 0.45);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- HUD: texto sobre la cámara -->
+  <div id="hud">
+    <div class="panel">
+      <div id="titulo">Fases de la Luna – Realidad Aumentada</div>
+      <div id="fase">Fase: (detectando…)</div>
+    </div>
+    <div class="panel" id="instrucciones">
+      Apunta la cámara al marcador <b>Hiro</b> impreso.
+      Mueve el marcador o rodea la mesa y observa cómo cambia la parte iluminada de la Luna.
+    </div>
+  </div>
+
+  <!-- Escena AR.js + A-Frame -->
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; antialias: true"
+    arjs="sourceType: webcam; debugUIEnabled: false;"
+  >
+    <!-- Fondo estrellado tipo cielo -->
+    <a-sky src="url(stars.jpg)" radius="20"></a-sky>
+
+    <!-- Cámara AR -->
+    <a-entity camera></a-entity>
+
+    <!-- Marcador: usamos el preset 'hiro' -->
+    <a-marker preset="hiro" id="marker-hiro">
+
+      <!-- Sistema Tierra-Luna-Sol -->
+      <a-entity id="sistema" position="0 0 0">
+
+        <!-- Luz direccional (Simula el Sol) -->
+        <a-entity
+          id="luz-sol"
+          light="type: directional; color: #ffffff; intensity: 1.5"
+          position="2 1 0"
+        ></a-entity>
+
+        <!-- Esfera pequeña para ubicar el Sol (opcional, solo referencia visual) -->
+        <a-sphere
+          position="2 1 0"
+          radius="0.12"
+          material="color: #ffff66; emissive: #ffffaa; shader: standard;"
+        ></a-sphere>
+
+        <!-- Tierra con textura realista en el centro -->
+        <a-sphere
+          id="tierra"
+          radius="0.25"
+          position="0 0 0"
+          material="src: url(earth.jpg); shader: standard; metalness: 0.1; roughness: 0.9"
+        >
+          <!-- Rotación lenta de la Tierra -->
+          <a-animation
+            attribute="rotation"
+            dur="20000"
+            to="0 360 0"
+            repeat="indefinite"
+            easing="linear"
+          ></a-animation>
+        </a-sphere>
+
+        <!-- Orbitador: pivote para la Luna -->
+        <a-entity id="orbitador" rotation="0 0 0">
+
+          <!-- Luna con textura realista -->
+          <a-sphere
+            id="luna"
+            radius="0.10"
+            position="0.7 0 0"
+            material="src: url(moon.jpg); shader: standard; metalness: 0.0; roughness: 1.0"
+          ></a-sphere>
+
+          <!-- Anillo indicando la órbita (solo visual) -->
+          <a-ring
+            position="0 0 0"
+            rotation="-90 0 0"
+            radius-inner="0.69"
+            radius-outer="0.71"
+            color="#aaaaaa"
+            material="opacity: 0.4"
+          ></a-ring>
+
+          <!-- Animación de la órbita de la Luna -->
+          <a-animation
+            attribute="rotation"
+            dur="12000"
+            to="0 360 0"
+            repeat="indefinite"
+            easing="linear"
+          ></a-animation>
+
+        </a-entity>
+
+        <!-- Etiqueta 3D sobre el sistema (muestra la fase) -->
+        <a-entity id="etiqueta-3d" position="0 0.6 0" rotation="-30 0 0">
+          <a-text
+            id="texto-3d-fase"
+            value="Fase lunar"
+            align="center"
+            color="#ffffff"
+            width="1.8"
+          ></a-text>
+        </a-entity>
+
+      </a-entity>
+    </a-marker>
+
+    <!-- Luz ambiente suave para que no quede todo negro -->
+    <a-entity light="type: ambient; intensity: 0.15; color: #ffffff"></a-entity>
+  </a-scene>
+
+  <script>
+    // Script para detectar la fase según el ángulo de la Luna alrededor de la Tierra
+    (function () {
+      const faseHUD = document.getElementById("fase");
+      const texto3D = document.getElementById("texto-3d-fase");
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const escena = document.querySelector("a-scene");
+
+        escena.addEventListener("loaded", function () {
+          const orbitador = document.getElementById("orbitador");
+
+          // Revisamos periódicamente el ángulo de la órbita
+          setInterval(() => {
+            if (!orbitador.object3D) return;
+
+            // Rotación en radianes → grados
+            const rotY = orbitador.object3D.rotation.y;
+            let grados = THREE.MathUtils.radToDeg(rotY);
+
+            // Normalizar a 0–360
+            grados = ((grados % 360) + 360) % 360;
+
+            // Fases según ángulo (aproximación sencilla)
+            // 0°   → Luna nueva (entre Tierra y Sol)
+            // 90°  → Cuarto creciente
+            // 180° → Luna llena
+            // 270° → Cuarto menguante
+            let faseTexto = "";
+            const margen = 22.5; // margen alrededor de cada ángulo principal
+
+            if (
+              (grados >= 0 && grados < margen) ||
+              (grados > 360 - margen && grados <= 360)
+            ) {
+              faseTexto = "Luna nueva";
+            } else if (
+              grados >= 90 - margen &&
+              grados <= 90 + margen
+            ) {
+              faseTexto = "Cuarto creciente";
+            } else if (
+              grados >= 180 - margen &&
+              grados <= 180 + margen
+            ) {
+              faseTexto = "Luna llena";
+            } else if (
+              grados >= 270 - margen &&
+              grados <= 270 + margen
+            ) {
+              faseTexto = "Cuarto menguante";
+            } else {
+              faseTexto = "Fase intermedia";
+            }
+
+            faseHUD.textContent = "Fase: " + faseTexto;
+            if (texto3D && texto3D.setAttribute) {
+              texto3D.setAttribute("value", faseTexto);
+            }
+          }, 200); // cada 0.2 s
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
