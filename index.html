@@ -15,7 +15,21 @@
       margin: 0;
       overflow: hidden;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #000;
+      background: transparent !important; /* importante para que se vea la cámara */
+    }
+
+    /* Que la escena ocupe toda la pantalla */
+    a-scene {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Forzamos el canvas a ser transparente */
+    canvas {
+      background-color: transparent !important;
     }
 
     /* HUD (texto sobre la imagen) */
@@ -73,19 +87,25 @@
   <a-scene
     embedded
     vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
+    renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true; precision: medium;"
     arjs="sourceType: webcam; debugUIEnabled: false;"
   >
+    <!-- Truco mínimo para mantener transparencia (no sky, no fondo) -->
+    <a-entity position="0 0 0"
+              geometry="primitive: plane; width: 0; height: 0"
+              material="color: transparent; opacity: 0">
+    </a-entity>
+
     <!-- Cámara AR -->
     <a-entity camera></a-entity>
 
     <!-- Marcador: usamos el preset 'hiro' -->
     <a-marker preset="hiro" id="marker-hiro">
 
-      <!-- Sistema Tierra-Luna-Sol, un poco más pequeño y centrado -->
+      <!-- Sistema Tierra-Luna-Sol, centrado -->
       <a-entity id="sistema" position="0 0 0" scale="0.8 0.8 0.8">
 
-        <!-- Luz direccional (Simula el Sol, MUY brillante) -->
+        <!-- Luz direccional (Simula el Sol, bastante brillante) -->
         <a-entity
           id="luz-sol"
           light="type: directional; color: #ffffff; intensity: 3.0"
@@ -124,7 +144,7 @@
             id="luna"
             radius="0.10"
             position="0.7 0 0"
-            material="src: url(moon.jpg); shader: standard; metalness: 0.0; roughness: 1.0; emissive: #444444; emissiveIntensity: 0.2"
+            material="src: url(moon.jpg); shader: standard; metalness: 0.0; roughness: 1.0; emissive: #444444; emissiveIntensity: 0.25"
           ></a-sphere>
 
           <!-- Anillo indicando la órbita (solo visual) -->
@@ -167,6 +187,14 @@
   </a-scene>
 
   <script>
+    // Forzar transparencia del canvas por si algún navegador se pone necio
+    window.addEventListener("load", function () {
+      const canvas = document.querySelector("canvas");
+      if (canvas) {
+        canvas.style.backgroundColor = "transparent";
+      }
+    });
+
     // Script para detectar la fase según el ángulo de la Luna alrededor de la Tierra
     (function () {
       const faseHUD = document.getElementById("fase");
